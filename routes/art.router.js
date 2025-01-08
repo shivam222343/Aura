@@ -1,0 +1,275 @@
+import Art from '../modules/art.module.js'; 
+import express from 'express';
+import User from '../modules/user.module.js';
+
+const artrouter = express.Router();
+
+//Get art collection for all users
+artrouter.get('/profile/all-art', async (req, res) => {
+    try {
+        // Fetch all art pieces from the Art collection
+        const allArt = await Art.find();
+
+        // Check if there are any art pieces
+        if (!allArt || allArt.length === 0) {
+            return res.status(404).json({ message: 'No art found' });
+        }
+
+        // Respond with all the art pieces
+        res.json(allArt);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get top 5 most liked arts
+artrouter.get('/profile/top-liked', async (req, res) => {
+    try {
+        // Fetch art pieces sorted by the number of likes in descending order
+        const topLikedArts = await Art.find()
+            .sort({ "likes.length": -1 }) // Sort by the length of the likes array in descending order
+            .limit(5); // Limit to top 5 results
+
+        // Check if there are any art pieces
+        if (!topLikedArts || topLikedArts.length === 0) {
+            return res.status(404).json({ message: 'No art found' });
+        }
+
+        // Respond with the top liked art pieces
+        res.json(topLikedArts);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+// Get art collection for specific user
+artrouter.get('/profile/art-collection', async (req, res) => {
+    const { id } = req.headers;  // Use user ID from headers
+    try {
+        const user = await User.findById(id).populate('myCollection');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const artCollection = await Art.find({ _id: { $in: user.myCollection } });
+        res.json(artCollection);
+    } catch (error) {
+        console.log(error); 
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Add new art piece
+artrouter.post('/profile/upload-art', async (req, res) => {
+    const { title, artist, image, description, category } = req.body;
+    const { id } = req.headers;  // Use user ID from headers
+    try {
+        // Create a new art piece
+        const newArt = new Art({
+            title,
+            artist,
+            image,
+            description,
+            category,
+            createdBy: id
+        });
+
+        // Save the art piece
+        await newArt.save();
+
+        // Add the art piece's ID to the user's collection
+        const user = await User.findById(id);
+        user.myCollection.push(newArt._id);
+        await user.save();
+
+        res.json({ message: 'Art added to collection', art: newArt });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Update art piece details
+artrouter.put('/profile/art-collection/:artId', async (req, res) => {
+    const { artId } = req.params;
+    const { title, artist, image, description, category } = req.body;
+    const { id } = req.headers;  // Use user ID from headers
+
+    try {
+        // Find the art piece to update
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Only allow updating the art that belongs to the user
+        if (artPiece.createdBy.toString() !== id) {
+            return res.status(403).json({ message: 'You can only update your own art pieces' });
+        }
+
+        // Update the art details
+        artPiece.title = title || artPiece.title;
+        artPiece.artist = artist || artPiece.artist;
+        artPiece.image = image || artPiece.image;
+        artPiece.description = description || artPiece.description;
+        artPiece.category = category || artPiece.category;
+
+        await artPiece.save();
+        res.json({ message: 'Art updated', art: artPiece });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Remove art from collection
+artrouter.delete('/profile/art-collection/:artId', async (req, res) => {
+    const { artId } = req.params;
+    console.log(artId);
+    const { id } = req.headers;  // Use user ID from headers
+
+    try {
+        // Find the art piece to remove
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Only allow deleting the art that belongs to the user
+        if (artPiece.createdBy.toString() !== id) {
+            return res.status(403).json({ message: 'You can only delete your own art pieces' });
+        }
+
+        // Remove the art piece from the user's collection
+        const user = await User.findById(id);
+        user.myCollection.pull(artId);
+        await user.save();
+
+        // Delete the art piece from the Art collection
+        await Art.deleteOne({ _id: artId });
+
+        res.json({ message: 'Art removed from collection' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Like an art piece
+artrouter.post('/profile/art-collection/:artId/like', async (req, res) => {
+    const { artId } = req.params;
+    const { id } = req.headers;  // Use user ID from headers
+
+    try {
+        // Find the art piece
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Check if the user has already liked the art
+        if (artPiece.likes.includes(id)) {
+            return res.status(400).json({ message: 'You have already liked this art' });
+        }
+
+        // Add the user ID to the likes array
+        artPiece.likes.push(id);
+        await artPiece.save();
+
+        res.json({ message: 'Art liked', art: artPiece });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+});
+
+// Unlike an art piece
+artrouter.post('/profile/art-collection/:artId/unlike', async (req, res) => {
+    const { artId } = req.params;
+    const { id } = req.headers; // User ID from headers
+
+    try {
+        // Find the art piece
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Check if the user has liked the art
+        if (!artPiece.likes.includes(id)) {
+            return res.status(400).json({ message: 'You have not liked this art' });
+        }
+
+        // Remove the user ID from the likes array
+        artPiece.likes = artPiece.likes.filter(userId => userId !== id);
+        await artPiece.save();
+
+        res.json({ message: 'Art unliked', art: artPiece });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Rate an art piece (1-5)
+artrouter.post('/profile/art-collection/:artId/rate', async (req, res) => {
+    const { artId } = req.params;
+    const { rating } = req.body;  // Rating should be sent in the body (1-5)
+    const { id } = req.headers;  // Use user ID from headers
+
+    // Validate the rating
+    if (rating < 1 || rating > 5) {
+        return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    try {
+        // Find the art piece
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Add the rating to the ratings array
+        artPiece.ratings.push(rating);
+        await artPiece.save();
+
+        // Calculate the average rating (optional)
+        const averageRating = artPiece.ratings.reduce((sum, rate) => sum + rate, 0) / artPiece.ratings.length;
+
+        res.json({ message: 'Art rated', averageRating });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+// Get the number of likes for an art piece
+artrouter.get('/profile/art-collection/:artId/likes', async (req, res) => {
+    const { artId } = req.params;
+
+    try {
+        // Find the art piece
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Get the number of likes
+        const numberOfLikes = artPiece.likes.length;
+
+        res.json({ message: 'Likes retrieved', numberOfLikes });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get the average rating and number of ratings for an art piece
+artrouter.get('/profile/art-collection/:artId/ratings', async (req, res) => {
+    const { artId } = req.params;
+
+    try {
+        // Find the art piece
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Calculate the average rating
+        const numberOfRatings = artPiece.ratings.length;
+        const averageRating = numberOfRatings > 0 ? (artPiece.ratings.reduce((sum, rate) => sum + rate, 0) / numberOfRatings) : 0;
+
+        res.json({ message: 'Ratings retrieved', averageRating, numberOfRatings });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+
+export default artrouter;
