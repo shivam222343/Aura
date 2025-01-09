@@ -89,11 +89,6 @@ artrouter.put('/profile/art-collection/:artId', upload.single('file'), async (re
 
         await artPiece.save();
 
-        const user = await User.findById(createdBy);
-        if (!user.myCollection.includes(artPiece._id)) {
-            user.myCollection.push(artPiece._id);
-            await user.save();
-        }
 
         res.json({ message: 'Art updated successfully', art: artPiece });
     } catch (error) {
