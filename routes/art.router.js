@@ -1,8 +1,95 @@
 import Art from '../modules/art.module.js'; 
 import express from 'express';
 import User from '../modules/user.module.js';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 
 const artrouter = express.Router();
+
+
+cloudinary.config({
+    cloud_name:"dwsddmatc",
+    api_key:"354363645799793",
+    api_secret:"_IAY82sOHU_p84GW0LdovKhAW30",
+});
+
+// Multer setup for file handling
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// Route to upload file to Cloudinary
+artrouter.post('/profile/upload-art', upload.single('file'), async (req, res) => {
+    try {
+        const file = req.file;
+        const { title, artist, description, category, createdBy } = req.body;
+
+        if (!file) return res.status(400).json({ message: 'No file uploaded' });
+
+        // Upload file to Cloudinary
+        cloudinary.uploader.upload_stream(
+            { folder: 'art-gallery' },
+            async (error, result) => {
+                if (error) return res.status(500).json({ message: 'Cloudinary upload failed', error });
+
+                // Create a new art entry
+                const newArt = new Art({
+                    title,
+                    artist,
+                    image: result.secure_url,
+                    description,
+                    category,
+                    createdBy, // Ensure `createdBy` is sent in the request
+                });
+
+                await newArt.save();
+
+                res.status(201).json({
+                    message: 'Art uploaded successfully',
+                    art: newArt,
+                });
+            }
+        ).end(file.buffer);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Update an art piece with a new image
+artrouter.put('/profile/art-collection/:artId', upload.single('file'), async (req, res) => {
+    const { artId } = req.params;
+    const { title, artist, description, category } = req.body;
+
+    try {
+        const artPiece = await Art.findById(artId);
+        if (!artPiece) return res.status(404).json({ message: 'Art not found' });
+
+        // Handle image upload if a new file is provided
+        if (req.file) {
+            const result = await cloudinary.uploader.upload_stream(
+                { folder: 'art-gallery' },
+                (error, result) => {
+                    if (error) throw new Error('Cloudinary upload failed');
+                    return result;
+                }
+            );
+            req.file.stream.pipe(result);
+            artPiece.image = result.secure_url;
+        }
+
+        // Update other fields
+        artPiece.title = title || artPiece.title;
+        artPiece.artist = artist || artPiece.artist;
+        artPiece.description = description || artPiece.description;
+        artPiece.category = category || artPiece.category;
+
+        await artPiece.save();
+        res.json({ message: 'Art updated successfully', art: artPiece });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error });
+    }
+});
 
 //Get art collection for all users
 artrouter.get('/profile/all-art', async (req, res) => {
@@ -60,35 +147,6 @@ artrouter.get('/profile/art-collection', async (req, res) => {
     }
 });
 
-// Add new art piece
-artrouter.post('/profile/upload-art', async (req, res) => {
-    const { title, artist, image, description, category } = req.body;
-    const { id } = req.headers;  // Use user ID from headers
-    try {
-        // Create a new art piece
-        const newArt = new Art({
-            title,
-            artist,
-            image,
-            description,
-            category,
-            createdBy: id
-        });
-
-        // Save the art piece
-        await newArt.save();
-
-        // Add the art piece's ID to the user's collection
-        const user = await User.findById(id);
-        user.myCollection.push(newArt._id);
-        await user.save();
-
-        res.json({ message: 'Art added to collection', art: newArt });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
 
 // Update art piece details
 artrouter.put('/profile/art-collection/:artId', async (req, res) => {
