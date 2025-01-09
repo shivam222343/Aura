@@ -38,10 +38,12 @@ artrouter.post('/profile/upload-art', upload.single('file'), async (req, res) =>
                     image: result.secure_url,
                     description,
                     category,
-                    createdBy, // Ensure `createdBy` is sent in the request
+                    createdBy, 
                 });
 
                 await newArt.save();
+                const user = await User.findById(createdBy);
+                user.myCollection.push(newArt._id);
 
                 res.status(201).json({
                     message: 'Art uploaded successfully',
@@ -58,7 +60,7 @@ artrouter.post('/profile/upload-art', upload.single('file'), async (req, res) =>
 // Update an art piece with a new image
 artrouter.put('/profile/art-collection/:artId', upload.single('file'), async (req, res) => {
     const { artId } = req.params;
-    const { title, artist, description, category } = req.body;
+    const { title, artist, description, category, createdBy } = req.body;
 
     try {
         const artPiece = await Art.findById(artId);
@@ -84,6 +86,9 @@ artrouter.put('/profile/art-collection/:artId', upload.single('file'), async (re
         artPiece.category = category || artPiece.category;
 
         await artPiece.save();
+        const user = await User.findById(createdBy);
+        user.myCollection.push(newArt._id);
+
         res.json({ message: 'Art updated successfully', art: artPiece });
     } catch (error) {
         console.error(error);
