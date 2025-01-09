@@ -44,7 +44,8 @@ artrouter.post('/profile/upload-art', upload.single('file'), async (req, res) =>
                 await newArt.save();
                 const user = await User.findById(createdBy);
                 user.myCollection.push(newArt._id);
-
+                await user.save();
+                
                 res.status(201).json({
                     message: 'Art uploaded successfully',
                     art: newArt,
@@ -57,7 +58,6 @@ artrouter.post('/profile/upload-art', upload.single('file'), async (req, res) =>
     }
 });
 
-// Update an art piece with a new image
 artrouter.put('/profile/art-collection/:artId', upload.single('file'), async (req, res) => {
     const { artId } = req.params;
     const { title, artist, description, category, createdBy } = req.body;
@@ -66,33 +66,39 @@ artrouter.put('/profile/art-collection/:artId', upload.single('file'), async (re
         const artPiece = await Art.findById(artId);
         if (!artPiece) return res.status(404).json({ message: 'Art not found' });
 
-        // Handle image upload if a new file is provided
+        // Upload new image if provided
         if (req.file) {
-            const result = await cloudinary.uploader.upload_stream(
-                { folder: 'art-gallery' },
-                (error, result) => {
-                    if (error) throw new Error('Cloudinary upload failed');
-                    return result;
-                }
-            );
-            req.file.stream.pipe(result);
-            artPiece.image = result.secure_url;
+            const uploadResult = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { folder: 'art-gallery' },
+                    (error, result) => {
+                        if (error) reject(new Error('Cloudinary upload failed'));
+                        else resolve(result);
+                    }
+                );
+                uploadStream.end(req.file.buffer);
+            });
+            artPiece.image = uploadResult.secure_url;
         }
 
         // Update other fields
-        artPiece.title = title || artPiece.title;
-        artPiece.artist = artist || artPiece.artist;
-        artPiece.description = description || artPiece.description;
-        artPiece.category = category || artPiece.category;
+        if (title) artPiece.title = title;
+        if (artist) artPiece.artist = artist;
+        if (description) artPiece.description = description;
+        if (category) artPiece.category = category;
 
         await artPiece.save();
+
         const user = await User.findById(createdBy);
-        user.myCollection.push(newArt._id);
+        if (!user.myCollection.includes(artPiece._id)) {
+            user.myCollection.push(artPiece._id);
+            await user.save();
+        }
 
         res.json({ message: 'Art updated successfully', art: artPiece });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
