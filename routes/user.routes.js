@@ -3,9 +3,58 @@ import User from '../modules/user.module.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import authentication from '../Auth/user.auth.js';
-import {OAuth2Client} from 'google-auth-library'
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import streamifier from 'streamifier';
+
 
 const router = express.Router();
+
+cloudinary.config({
+    cloud_name:"dwsddmatc",
+    api_key:"354363645799793",
+    api_secret:"_IAY82sOHU_p84GW0LdovKhAW30",
+});
+
+const upload = multer({ storage: multer.memoryStorage() });
+// Assuming `router` is the defined router object
+router.put('/profile', upload.single('avatar'), async (req, res) => {
+    const { username, email, biography } = req.body;
+    const { id } = req.headers; // Assuming user ID is passed in headers
+
+    try {
+        const user = await User.findById(id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Upload image to Cloudinary if an avatar file is provided
+        if (req.file) {
+            const uploadResult = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { folder: 'user-profiles' },
+                    (error, result) => {
+                        if (error) reject(new Error('Cloudinary upload failed'));
+                        else resolve(result);
+                    }
+                );
+                uploadStream.end(req.file.buffer);
+            });
+            user.avatar = uploadResult.secure_url; // Update avatar URL in the database
+        }
+
+        // Update other user details
+        if (username) user.username = username;
+        if (email) user.email = email;
+        if (biography) user.biography = biography;
+
+        await user.save();
+
+        res.json({ message: 'Profile updated successfully', user });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 
 // Register route
 router.post('/register', async (req, res) => {
@@ -65,25 +114,18 @@ router.get('/profile', async (req, res) => {
     }
 });
 
-// Update user profile
-router.put('/profile', async (req, res) => {
-    const { username, email, biography, avatar } = req.body;
-    const { id } = req.headers;
+
+// Get all users
+router.get('/all-users', async (req, res) => {
     try {
-        const updatedUser = await User.findByIdAndUpdate(id, {
-            username,
-            email,
-            biography,
-            avatar
-        }, { new: true });
-
-        if (!updatedUser) return res.status(404).json({ message: 'User not found' });
-
-        res.json(updatedUser);
+        const users = await User.find().select('-password'); 
+        res.json(users);
     } catch (error) {
+        console.log(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
+
 
 // Get friend list
 router.get('/profile/friends', async (req, res) => {

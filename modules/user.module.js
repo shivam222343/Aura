@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema({
     },
     avatar: {
         type: String,
-        default: 'default.jpg'
+        default: 'https://th.bing.com/th/id/OIP.BgaEYtwtykKt4-75mRcJ9wHaHa?rs=1&pid=ImgDetMain'
     },
     date: {
         type: Date,
