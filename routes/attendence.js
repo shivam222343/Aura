@@ -18,28 +18,32 @@ atrouter.post('/meetings', async (req, res) => {
 });
 
 
+// Update attendance for a specific meeting
 atrouter.post('/meetings/:meetingId/attendance', async (req, res) => {
-    const { meetingId } = req.params;
-    const { attendees } = req.body; // Array of { userId, status }
-  
     try {
+      const { meetingId } = req.params;
+      const { attendees } = req.body;
+  
       const meeting = await Meeting.findById(meetingId);
       if (!meeting) {
         return res.status(404).json({ message: 'Meeting not found' });
       }
   
-      meeting.attendees = attendees; // Update the attendees array
-      await meeting.save();
+      meeting.attendance = attendees.map(attendee => ({
+        userId: attendee.userId,
+        status: attendee.status
+      }));
   
-      res.json({ message: 'Attendance recorded successfully', meeting });
+      await meeting.save();
+      res.json({ message: 'Attendance updated successfully' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Failed to record attendance', error: error.message });
+      console.error('Error updating attendance:', error);
+      res.status(500).json({ message: 'Error updating attendance', error });
     }
   });
-
   
-  atrouter.get('/meetings/:meetingId/attendance', async (req, res) => {
+  
+  atatrouter.get('/meetings/:meetingId/attendance', async (req, res) => {
     const { meetingId } = req.params;
   
     try {
@@ -54,6 +58,33 @@ atrouter.post('/meetings/:meetingId/attendance', async (req, res) => {
       res.status(500).json({ message: 'Failed to fetch attendance', error: error.message });
     }
   });
+
+  // Get all meetings
+atrouter.get('/meetings', async (req, res) => {
+    try {
+      const meetings = await Meeting.find(); // Fetch all meetings
+      res.json(meetings);
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      res.status(500).json({ message: 'Error fetching meetings', error });
+    }
+  });
+  
+  // Get attendance for a specific meeting
+  atrouter.get('/meetings/:meetingId/attendance', async (req, res) => {
+    try {
+      const { meetingId } = req.params;
+      const meeting = await Meeting.findById(meetingId).populate('attendance.userId', 'username');
+      if (!meeting) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+      res.json(meeting);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      res.status(500).json({ message: 'Error fetching attendance', error });
+    }
+  });
+  
 
   export default atrouter;
   
