@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const attendanceSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -13,4 +13,4 @@ const meetingSchema = new mongoose.Schema({
 
 const Meeting = mongoose.model('Meeting', meetingSchema);
 
-module.exports = Meeting;
+export default Meeting;
