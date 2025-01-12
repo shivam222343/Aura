@@ -43,7 +43,7 @@ atrouter.post('/meetings/:meetingId/attendance', async (req, res) => {
   });
   
   
-  atatrouter.get('/meetings/:meetingId/attendance', async (req, res) => {
+  atrouter.get('/meetings/:meetingId/attendance', async (req, res) => {
     const { meetingId } = req.params;
   
     try {
