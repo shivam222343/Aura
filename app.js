@@ -5,6 +5,7 @@ import helmet from "helmet";
 import connection from './db/db.js';
 import router from './routes/user.routes.js'
 import artrouter from './routes/art.router.js'
+import atrouter from './routes/attendence.js'
 
 // Initialize app
 dotenv.config();
@@ -21,6 +22,7 @@ app.use(helmet());
 // Routes
 app.use("/user", router);
 app.use("/art", artrouter);
+app.use("/attendence", atrouter)
 
 // 404 Handler
 app.use((req, res) => {
