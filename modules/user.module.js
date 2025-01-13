@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
+    default:"I_am_Artist"
   },
   password: {
     type: String,

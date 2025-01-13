@@ -159,6 +159,22 @@ router.get('/profile', async (req, res) => {
     }
 });
 
+//liked users
+router.get("/users/details", async (req, res) => {
+    try {
+        // Extract IDs from the query parameter
+        const ids = req.query.ids.split(",");
+
+        // Fetch user details from the database
+        const users = await User.find({ _id: { $in: ids } }).select("username avatar");
+
+        // Return the user details
+        res.status(200).json({ users });
+    } catch (error) {
+        console.error("Error fetching user details:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
 // Get all users
 router.get('/all-users', async (req, res) => {

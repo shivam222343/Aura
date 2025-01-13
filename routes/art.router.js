@@ -334,6 +334,16 @@ artrouter.get('/profile/art-collection/:artId/ratings', async (req, res) => {
     }
 });
 
+artrouter.get('/profile/art-collection/:artId/liked-users', async (req, res) => {
+    try {
+        const art = await Art.findById(req.params.artId).populate('likes', 'username');
+        if (!art) return res.status(404).send({ message: 'Art not found' });
+        res.send({ users: art.likes });
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+});
+
 
 
 export default artrouter;
