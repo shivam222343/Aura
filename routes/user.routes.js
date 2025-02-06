@@ -21,34 +21,45 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/register', async (req, res) => {
     const { username, email, password, phone, DOB } = req.body;
 
-    if (!username || !email || !password || !phone || !DOB) {
+    // Trim input values to remove accidental spaces
+    if (!username?.trim() || !email?.trim() || !password?.trim() || !phone?.trim() || !DOB?.trim()) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
+    // Validate username format
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        return res.status(400).json({ message: 'Invalid username format' });
+        return res.status(400).json({ message: 'Username can only contain letters, numbers, and underscores' });
     }
 
+    // Validate email format
     if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
-        return res.status(400).json({ message: 'Invalid email format' });
+        return res.status(400).json({ message: 'Please enter a valid email address' });
     }
 
+    // Validate phone number format
     if (!/^[0-9]{10}$/.test(phone)) {
-        return res.status(400).json({ message: 'Invalid phone number' });
+        return res.status(400).json({ message: 'Phone number must be exactly 10 digits' });
     }
 
-    const age = new Date().getFullYear() - new Date(DOB).getFullYear();
-    if (age < 13) {
-        return res.status(400).json({ message: 'User must be at least 13 years old' });
+    // Validate age restriction
+    const birthDate = new Date(DOB);
+    const age = new Date().getFullYear() - birthDate.getFullYear();
+    if (isNaN(birthDate) || age < 13) {
+        return res.status(400).json({ message: 'You must be at least 13 years old to register' });
     }
 
     try {
+        // Check if the user already exists with the same username, email, or phone
         const userExist = await User.findOne({ $or: [{ email }, { phone }, { username }] });
-        if (userExist) return res.status(400).json({ message: 'User already exists with the given credentials' });
+        if (userExist) {
+            return res.status(400).json({ message: 'An account with this username, email, or phone number already exists' });
+        }
 
+        // Hash the password before storing
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // Create a new user
         const newUser = new User({
             username,
             email,
@@ -58,12 +69,14 @@ router.post('/register', async (req, res) => {
         });
 
         await newUser.save();
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({ message: 'Registration successful! You can now log in.' });
+
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({ message: 'An unexpected error occurred. Please try again.', error: error.message });
     }
 });
+
 
 // Login route with schema-based validation
 router.post('/login', async (req, res) => {
@@ -267,6 +280,33 @@ router.post("/google-login", async (req, res) => {
       res.status(400).json({ message: "Invalid Google Token" });
     }
   });
+
+
+  //update user role 
+  router.patch('/user-role/:id', async (req, res) => {
+    const { id } = req.params;
+    const { newRole } = req.body;
+
+    // Ensure valid role
+    const validRoles = ['user', 'artist', 'admin'];
+    if (!validRoles.includes(newRole)) {
+        return res.status(400).json({ message: 'Invalid role specified' });
+    }
+
+    try {
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.role = newRole;
+        await user.save();
+
+        res.status(200).json({ message: `User role updated to ${newRole}` });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
   
 
 export default router;

@@ -8,7 +8,6 @@ const userSchema = new mongoose.Schema({
     match: /^[a-zA-Z0-9_]+$/,
     required: true,
     unique: true,
-    trim: true,
     default:"I_am_Artist"
   },
   password: {
@@ -42,14 +41,7 @@ const userSchema = new mongoose.Schema({
   },
   DOB: {
     type: Date,
-    required: true,
-    validate: {
-      validator: (value) => {
-        const age = new Date().getFullYear() - value.getFullYear();
-        return age >= 13;
-      },
-      message: "User must be at least 13 years old.",
-    },
+    required: true
   },
   isActive: {
     type: Boolean,

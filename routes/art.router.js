@@ -344,6 +344,4 @@ artrouter.get('/profile/art-collection/:artId/liked-users', async (req, res) => 
     }
 });
 
-
-
 export default artrouter;

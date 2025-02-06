@@ -6,7 +6,7 @@ const connection = () => {
         {
             useNewUrlParser: true,
             useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 30000, // 30 seconds timeout
+            serverSelectionTimeoutMS: 30000,
         }
     )
     .then(() => console.log("MongoDB Connected successfully..."))
