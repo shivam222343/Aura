@@ -95,10 +95,6 @@ router.post('/login', async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        if (!user.password) {
-            return res.status(500).json({ message: 'Password is missing in the database' });
-        }
-
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
@@ -109,7 +105,6 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
-
 // Profile update route with schema-based validation
 router.put('/profile', upload.single('avatar'), async (req, res) => {
     const { username, email, biography } = req.body;
