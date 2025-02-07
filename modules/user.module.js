@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema({
     minlength: 8,
     maxlength: 200,
     required: true,
+    select: false,
   },
   email: {
     type: String,
@@ -31,7 +32,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'artist'],
+    enum: ['user', 'artist', 'admin', 'superadmin'],
     default: 'user',
   },
   biography: {

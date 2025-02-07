@@ -6,6 +6,7 @@ import authentication from '../Auth/user.auth.js';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
+import { verifyToken, verifyAdmin } from '../Auth/authMiddleware.js';
 
 
 const router = express.Router();
@@ -307,5 +308,40 @@ router.post("/google-login", async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 });
+
+
+//update user role
+router.put('/:id/role', verifyAdmin, async (req, res) => {
+    try {
+      const { userid } = req.body;
+      const { role } = req.body;
+  
+      // Check if role is valid
+      const validRoles = ['user', 'artist', 'admin', 'superadmin'];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ message: 'Invalid role provided' });
+      }
+  
+      // Find the user
+      const user = await User.findById(userid);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      console.log(user);
+      
+  
+      // Update the role
+      user.role = role;
+      await user.save();
+  
+      res.status(200).json({ message: 'User role updated successfully', user });
+  
+    } catch (error) {
+        console.log(error);
+        
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  });
   
 export default router;

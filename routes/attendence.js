@@ -76,7 +76,5 @@ atrouter.get('/meetings', async (req, res) => {
       res.status(500).json({ message: 'Error fetching attendance', error });
     }
   });
-  
-
   export default atrouter;
   
