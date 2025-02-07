@@ -1,5 +1,5 @@
 import express from 'express';
-import User from '../modules/user.module.js'; 
+import User from '../modules/user.module.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import authentication from '../Auth/user.auth.js';
@@ -12,9 +12,9 @@ import { verifyToken, verifyAdmin } from '../Auth/authMiddleware.js';
 const router = express.Router();
 
 cloudinary.config({
-    cloud_name:"dwsddmatc",
-    api_key:"354363645799793",
-    api_secret:"_IAY82sOHU_p84GW0LdovKhAW30",
+    cloud_name: "dwsddmatc",
+    api_key: "354363645799793",
+    api_secret: "_IAY82sOHU_p84GW0LdovKhAW30",
 });
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -95,6 +95,10 @@ router.post('/login', async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
+        if (!user.password) {
+            return res.status(500).json({ message: 'Password is missing in the database' });
+        }
+
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
@@ -162,9 +166,9 @@ router.put('/profile', upload.single('avatar'), async (req, res) => {
 
 // Get user profile
 router.get('/profile', async (req, res) => {
-    const { id } = req.headers;  
+    const { id } = req.headers;
     try {
-        const user = await User.findById(id).select('-password');  
+        const user = await User.findById(id).select('-password');
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         res.json(user);
@@ -193,7 +197,7 @@ router.get("/users/details", async (req, res) => {
 // Get all users
 router.get('/all-users', async (req, res) => {
     try {
-        const users = await User.find().select('-password'); 
+        const users = await User.find().select('-password');
         res.json(users);
     } catch (error) {
         console.log(error);
@@ -218,7 +222,7 @@ router.get('/profile/friends', async (req, res) => {
 // Add friend
 router.post('/profile/friends', async (req, res) => {
     const { friendId } = req.body;
-    const {id} = req.headers;
+    const { id } = req.headers;
     try {
         const user = await User.findById(id);
         const friend = await User.findById(friendId);
@@ -252,39 +256,39 @@ router.delete('/profile/friends/:friendId', async (req, res) => {
 //google login route
 router.post("/google-login", async (req, res) => {
     const { tokenId } = req.body;
-  
+
     try {
-      // Verify Google Token
-      const ticket = await client.verifyIdToken({
-        idToken: tokenId,
-        audience: "947200404764-4vrp7nq09hjv85p4c9it0bv1qicaadjh.apps.googleusercontent.com",
-      });
-  
-      const { email, name, sub } = ticket.getPayload();
-  
-      // Check if User Exists
-      let user = await User.findOne({ email });
-      if (!user) {
-        // Create New User
-        user = new User({
-          username: name,
-          email,
-          password: sub, // You can hash or save token for Google users
+        // Verify Google Token
+        const ticket = await client.verifyIdToken({
+            idToken: tokenId,
+            audience: "947200404764-4vrp7nq09hjv85p4c9it0bv1qicaadjh.apps.googleusercontent.com",
         });
-        await user.save();
-      }
-  
-      // Generate JWT
-      const token = jwt.sign({ userId: user._id }, "secretKey", { expiresIn: "1h" });
-      res.json({ token, user, message: "Google Login Successful" });
+
+        const { email, name, sub } = ticket.getPayload();
+
+        // Check if User Exists
+        let user = await User.findOne({ email });
+        if (!user) {
+            // Create New User
+            user = new User({
+                username: name,
+                email,
+                password: sub, // You can hash or save token for Google users
+            });
+            await user.save();
+        }
+
+        // Generate JWT
+        const token = jwt.sign({ userId: user._id }, "secretKey", { expiresIn: "1h" });
+        res.json({ token, user, message: "Google Login Successful" });
     } catch (error) {
-      res.status(400).json({ message: "Invalid Google Token" });
+        res.status(400).json({ message: "Invalid Google Token" });
     }
-  });
+});
 
 
-  //update user role 
-  router.patch('/user-role/:id', async (req, res) => {
+//update user role 
+router.patch('/user-role/:id', async (req, res) => {
     const { id } = req.params;
     const { newRole } = req.body;
 
@@ -313,35 +317,35 @@ router.post("/google-login", async (req, res) => {
 //update user role
 router.put('/:id/role', verifyAdmin, async (req, res) => {
     try {
-      const { userid } = req.body;
-      const { role } = req.body;
-  
-      // Check if role is valid
-      const validRoles = ['user', 'artist', 'admin', 'superadmin'];
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({ message: 'Invalid role provided' });
-      }
-  
-      // Find the user
-      const user = await User.findById(userid);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
+        const { userid } = req.body;
+        const { role } = req.body;
 
-      console.log(user);
-      
-  
-      // Update the role
-      user.role = role;
-      await user.save();
-  
-      res.status(200).json({ message: 'User role updated successfully', user });
-  
+        // Check if role is valid
+        const validRoles = ['user', 'artist', 'admin', 'superadmin'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({ message: 'Invalid role provided' });
+        }
+
+        // Find the user
+        const user = await User.findById(userid);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        console.log(user);
+
+
+        // Update the role
+        user.role = role;
+        await user.save();
+
+        res.status(200).json({ message: 'User role updated successfully', user });
+
     } catch (error) {
         console.log(error);
-        
-      res.status(500).json({ message: 'Server error', error: error.message });
+
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
-  });
-  
+});
+
 export default router;
