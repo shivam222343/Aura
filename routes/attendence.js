@@ -58,7 +58,7 @@ atrouter.get('/meetings', async (req, res) => {
   atrouter.get('/meetings/:meetingId/attendance', async (req, res) => {
     try {
       const { meetingId } = req.params;
-      const meeting = await Meeting.findById(meetingId).populate('attendance.userId', 'username');
+      const meeting = await Meeting.findById(meetingId).populate('attendance.userId', 'username', "email", "phone");
       if (!meeting) {
         return res.status(404).json({ message: 'Meeting not found' });
       }
