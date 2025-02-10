@@ -184,11 +184,10 @@ artrouter.put('/profile/art-collection/:artId', async (req, res) => {
     }
 });
 
-// Remove art from collection
+// Delete art from collection and Cloudinary
 artrouter.delete('/profile/art-collection/:artId', async (req, res) => {
     const { artId } = req.params;
-    console.log(artId);
-    const { id } = req.headers;  // Use user ID from headers
+    const { id } = req.headers; // Use user ID from headers
 
     try {
         // Find the art piece to remove
@@ -200,6 +199,12 @@ artrouter.delete('/profile/art-collection/:artId', async (req, res) => {
             return res.status(403).json({ message: 'You can only delete your own art pieces' });
         }
 
+        // Extract the public ID from the Cloudinary URL
+        const publicId = artPiece.image.split('/').pop().split('.')[0];
+
+        // Delete the image from Cloudinary
+        await cloudinary.uploader.destroy(`art-gallery/${publicId}`);
+
         // Remove the art piece from the user's collection
         const user = await User.findById(id);
         user.myCollection.pull(artId);
@@ -208,7 +213,7 @@ artrouter.delete('/profile/art-collection/:artId', async (req, res) => {
         // Delete the art piece from the Art collection
         await Art.deleteOne({ _id: artId });
 
-        res.json({ message: 'Art removed from collection' });
+        res.json({ message: 'Art removed from collection and Cloudinary' });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: 'Server error' });

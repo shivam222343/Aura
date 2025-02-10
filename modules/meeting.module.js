@@ -8,6 +8,7 @@ const attendanceSchema = new mongoose.Schema({
 const meetingSchema = new mongoose.Schema({
   title: { type: String, required: true },
   date: { type: Date, required: true },
+  description: {type: String, required: true},
   attendance: [attendanceSchema]
 });
 
